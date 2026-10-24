@@ -4,11 +4,10 @@ Plain Java classes that read hardware information from the text files Linux
 provides under `/proc` and `/sys`. No C and no native library is needed.
 The assignment's hardware data sources are Linux files under `/proc` and
 `/sys`. Run it on Linux, in a Linux virtual machine, or on the course cloud
-server to use those sources. As an extra, `pciInfo` can also list PCI devices
-on Windows through its Plug and Play registry and on macOS through
-`system_profiler`; those platform-specific queries do not replace the
-assignment's Linux data sources. The other `/proc` and `/sys` readers are
-Linux-only.
+server to use those sources. As an extra, `pciInfo` and `usbInfo` can also list
+devices on Windows through Plug and Play and on macOS through `system_profiler`;
+those platform-specific queries do not replace the assignment's Linux data
+sources. CPU and memory readers remain Linux-only.
 
 ## Build and run
 
@@ -17,16 +16,18 @@ Linux-only.
     java -cp out demo
 
 Run `java` from this folder, so that the `ids` folder is found. `demo` shows
-how to call each class; it is not a solution to the assignment. On Windows it
-reports that CPU, memory, and USB information are Linux-only, and still lists
-PCI devices. macOS behaves the same way, using `system_profiler` for PCI data.
+how to call each class; it is not a solution to the assignment. On Windows and
+macOS, CPU and memory data remain Linux-only; PCI and USB devices are listed
+using the platform's native hardware query. Bus and device numbers are shown
+as unavailable outside Linux.
 The demo prints the PCI devices sorted by vendor name and by bus/device/function,
-followed by a count of devices per vendor.
+followed by a count of devices per vendor. It also stores USB devices in a list
+and prints their vendor and product IDs; if none are found, it says so.
 
 ## The classes
 
 All methods are `static`. Linux values that cannot be read come back as -1 (or
-an empty string). A failed Windows or macOS PCI query throws an
+an empty string). A failed Windows or macOS PCI/USB query throws an
 `IllegalStateException` rather than looking like an empty device list.
 
 | Class | Methods | Source |
@@ -34,7 +35,7 @@ an empty string). A failed Windows or macOS PCI query throws an
 | `cpuInfo` | `getCount()`, `getModel()`, `getField(name)`, `getBusy(core)`, `getIdle(core)` | `/proc/cpuinfo`, `/proc/stat` |
 | `memInfo` | `getTotal()`, `getAvailable()`, `getUsed()`, `field(name)` (all in KiB) | `/proc/meminfo` |
 | `pciInfo` | `getCount()`, `getAddress(i)`, `getBus(i)`, `getDevice(i)`, `getFunction(i)`, `getVendorId(i)`, `getDeviceId(i)`, `getClassCode(i)`, `rescan()` | Assignment/Linux: `/sys/bus/pci/devices`; optional Windows/macOS support: native OS APIs |
-| `usbInfo` | `getCount()`, `getName(i)`, `getVendorId(i)`, `getProductId(i)`, `getManufacturer(i)`, `getProduct(i)`, `getBusNumber(i)`, `getDeviceNumber(i)`, `rescan()` | `/sys/bus/usb/devices` |
+| `usbInfo` | `getCount()`, `getName(i)`, `getVendorId(i)`, `getProductId(i)`, `getManufacturer(i)`, `getProduct(i)`, `getBusNumber(i)`, `getDeviceNumber(i)`, `rescan()` | Linux: `/sys/bus/usb/devices`; Windows/macOS: native OS APIs |
 | `idLookup` | `pci()`, `usb()`, `vendorName(id)`, `deviceName(vendor, device)`, `className(classCode)` | `ids/pci.ids`, `ids/usb.ids` |
 | `sysFile` | internal helper used by the classes above | |
 
@@ -44,11 +45,17 @@ Notes:
   twice, about a second apart, and work from the differences.
 - On arm64 there is no `model name` in `/proc/cpuinfo`: `getModel()` returns
   "unknown". Use `getField("CPU part")` or `getField("CPU implementer")`.
-- `usbInfo` lists root hubs as well as plugged-in devices, in the same order as `lsusb`, and `getBusNumber(i)` and `getDeviceNumber(i)` give the numbers that `lsusb` prints as "Bus 001 Device 002". A virtual machine or
-  the cloud server may have no USB at all, so `getCount()` can be 0.
+- On Linux, `usbInfo` lists root hubs as well as plugged-in devices, in the
+  same order as `lsusb`; `getBusNumber(i)` and `getDeviceNumber(i)` give the
+  numbers that `lsusb` prints as "Bus 001 Device 002". Windows and macOS don't
+  provide these Linux-style numbers, so those methods return -1 there.
+- A virtual machine or the cloud server may have no USB devices, so
+  `getCount()` can be 0.
 - `idLookup` methods return `null` when an ID is not in the file.
 - The demo looks up PCI vendor and device names in `ids/pci.ids`; when an ID has
   no matching name, it displays the raw hexadecimal ID instead.
+- USB vendor and product names are looked up in `ids/usb.ids`; unknown IDs are
+  displayed as raw hexadecimal values.
 - On Windows, `pciInfo.getAddress(i)` uses the reported bus/device/function
   when available (with domain `0000`, which Windows does not expose here). If
   Windows does not report a location, it returns the device's Plug and Play ID
@@ -57,6 +64,8 @@ Notes:
 - On macOS, PCI addresses use domain `0000` when bus, device, and function
   numbers are reported. Apple silicon Macs may not expose PCI devices through
   `system_profiler`.
+- Windows and macOS USB queries provide vendor and product IDs and names, but
+  do not provide the Linux-style bus and device numbers used by `lsusb`.
 
 ## Testing against a copy of /proc and /sys
 

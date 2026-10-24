@@ -21,7 +21,7 @@ public class demo
         boolean macos = System.getProperty("os.name").startsWith("Mac");
         if (windows || macos) {
             System.out.println("CPU and memory information require Linux /proc files.");
-            System.out.println("USB information requires Linux /sys files.");
+            System.out.println("USB bus and device numbers are only available on Linux.");
         } else {
             System.out.println("cores:  " + cpuInfo.getCount());
             System.out.println("model:  " + cpuInfo.getModel());
@@ -64,20 +64,28 @@ public class demo
             System.out.printf("  %-40s %d%n", entry.getKey(), entry.getValue());
         System.out.println("Total PCI devices: " + pciDevices.size());
 
-        if (windows || macos)
-            return;
-
-        idLookup usb = idLookup.usb();
         int usbCount = usbInfo.getCount();
-        System.out.println("USB devices: " + usbCount);
+        List<UsbDevice> usbDevices = new ArrayList<>();
         for (int i = 0; i < usbCount; i++) {
-            int vendor = usbInfo.getVendorId(i);
-            int product = usbInfo.getProductId(i);
-            System.out.printf("  Bus %03d Device %03d: ID %s:%s  %s %s%n",
-                              usbInfo.getBusNumber(i), usbInfo.getDeviceNumber(i),
-                              hexId(vendor), hexId(product),
-                              nameOrUnknown(usb.vendorName(vendor)),
-                              nameOrUnknown(usb.deviceName(vendor, product)));
+            usbDevices.add(new UsbDevice(usbInfo.getBusNumber(i), usbInfo.getDeviceNumber(i),
+                                         usbInfo.getVendorId(i), usbInfo.getProductId(i)));
+        }
+
+        System.out.println("USB devices: " + usbDevices.size());
+        if (usbDevices.isEmpty()) {
+            System.out.println("No USB devices found.");
+        } else {
+            idLookup usb = idLookup.usb();
+            for (int i = 0; i < usbDevices.size(); i++) {
+                UsbDevice device = usbDevices.get(i);
+                System.out.printf("  %d. Bus %s Device %s: ID %s:%s  %s %s%n",
+                                  i + 1, paddedNumberOrUnknown(device.bus),
+                                  paddedNumberOrUnknown(device.device),
+                                  hexId(device.vendorId), hexId(device.productId),
+                                  pciNameOrId(device.vendorId, usb.vendorName(device.vendorId)),
+                                  pciNameOrId(device.productId,
+                                              usb.deviceName(device.vendorId, device.productId)));
+            }
         }
     }
 
@@ -135,6 +143,11 @@ public class demo
         return number < 0 ? "unknown" : Integer.toString(number);
     }
 
+    private static String paddedNumberOrUnknown(int number)
+    {
+        return number < 0 ? "unknown" : String.format("%03d", number);
+    }
+
     private static int sortNumber(int number)
     {
         return number < 0 ? Integer.MAX_VALUE : number;
@@ -162,6 +175,22 @@ public class demo
             this.vendorId = vendorId;
             this.deviceId = deviceId;
             this.classCode = classCode;
+        }
+    }
+
+    private static final class UsbDevice
+    {
+        final int bus;
+        final int device;
+        final int vendorId;
+        final int productId;
+
+        UsbDevice(int bus, int device, int vendorId, int productId)
+        {
+            this.bus = bus;
+            this.device = device;
+            this.vendorId = vendorId;
+            this.productId = productId;
         }
     }
 }
