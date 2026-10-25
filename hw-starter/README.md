@@ -11,6 +11,13 @@ sources. CPU and memory readers remain Linux-only.
 
 ## Build and run
 
+See [RUNNING.md](RUNNING.md) for the WSL setup, command examples, report export,
+and examples of calling the hardware-reading methods.
+See [CODE-OVERVIEW.md](CODE-OVERVIEW.md) for descriptions of the classes and
+their functions.
+See [EXTENSIONS.md](EXTENSIONS.md) for the implemented extensions and their
+behavior.
+
     mkdir -p out
     javac -d out src/*.java
     java -cp out demo
@@ -20,9 +27,18 @@ how to call each class; it is not a solution to the assignment. On Windows and
 macOS, CPU and memory data remain Linux-only; PCI and USB devices are listed
 using the platform's native hardware query. Bus and device numbers are shown
 as unavailable outside Linux.
-The demo prints the PCI devices sorted by vendor name and by bus/device/function,
-followed by a count of devices per vendor. It also stores USB devices in a list
-and prints their vendor and product IDs; if none are found, it says so.
+The demo groups PCI devices by controller category and PCI class, with counts
+per class and vendor. USB devices are sorted by vendor and include their vendor
+and product IDs; if none match the selected filters, it says so.
+
+To save the same output as a UTF-8 text report instead of printing it to the
+terminal, pass an output path:
+
+    java -cp out demo --report hardware-report.txt
+
+The report path can be relative to this project folder or absolute. Existing
+files at that path are overwritten.
+To open the optional graphical interface, run `java -cp out demo --gui`.
 
 ## The classes
 
