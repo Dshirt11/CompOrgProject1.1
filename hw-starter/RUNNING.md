@@ -31,6 +31,8 @@ java -cp out demo
 
 The `ids` folder must be in the current working directory when you run the
 program; it contains the PCI and USB name databases used by the demo.
+On Linux, the report samples CPU load for about one second before displaying
+the hardware inventory.
 
 ## Save a text report
 

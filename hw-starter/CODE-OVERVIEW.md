@@ -8,8 +8,9 @@ rather than asking the user to enter hardware details.
 ## Program flow
 
 1. `demo` checks whether a report filename was provided.
-2. It reads CPU and memory information on Linux, then gathers PCI and USB
-   devices through their respective reader classes.
+2. On Linux, it samples CPU counters about one second apart to calculate
+   overall and per-core load, and reads memory information. It then gathers
+   PCI and USB devices through their respective reader classes.
 3. `idLookup` translates numeric vendor, device, and PCI class IDs into names.
 4. The demo sorts and summarizes the PCI devices, lists USB devices, and
    prints the report. With `--report <file>`, it writes the same report to a
@@ -42,8 +43,8 @@ the terminal or saves it to a report file.
   omit it to use the command-line interface.
 - Any other argument form results in a usage error.
 
-The report includes CPU and memory details when running on Linux, PCI devices
-grouped into network, display, storage, bridge, and USB-controller categories,
+The report includes sampled CPU load and memory details when running on Linux,
+PCI devices grouped into network, display, storage, bridge, and USB-controller categories,
 remaining devices grouped by PCI class, totals per class and vendor, and USB
 devices sorted by vendor. Devices within each PCI group are sorted by vendor.
 Unknown IDs are shown as hexadecimal values or `unknown`. Multiple filters can

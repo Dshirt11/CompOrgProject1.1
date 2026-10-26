@@ -150,10 +150,9 @@ public class usbInfo
             "    $_.PNPDeviceID -match '^USB\\\\VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})' -and\n" +
             "    $_.PNPDeviceID -notmatch '&MI_'\n" +
             "  } | ForEach-Object {\n" +
-            "    $match = [regex]::Match($_.PNPDeviceID, 'VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})')\n" +
             "    $manufacturer = ([string]$_.Manufacturer) -replace '[\\t\\r\\n]', ' '\n" +
             "    $product = ([string]$_.Name) -replace '[\\t\\r\\n]', ' '\n" +
-            "    [Console]::Out.WriteLine(\"$($match.Groups[1].Value)`t$($match.Groups[2].Value)`t$manufacturer`t$product\")\n" +
+            "    [Console]::Out.WriteLine(\"$($_.PNPDeviceID)`t$manufacturer`t$product\")\n" +
             "  }\n" +
             "} catch { [Console]::Error.WriteLine($_); exit 1 }\n";
         String encodedScript = java.util.Base64.getEncoder().encodeToString(
@@ -174,10 +173,15 @@ public class usbInfo
                 if (line.isBlank())
                     continue;
                 String[] fields = line.split("\\t", -1);
-                if (fields.length != 4)
+                if (fields.length != 3)
                     throw new IllegalStateException("Unexpected output from Windows USB device query: " + line);
-                found.add(new UsbDevice(fields[0] + ":" + fields[1], fields[2], fields[3],
-                                        -1, -1, hexadecimal(fields[0]), hexadecimal(fields[1])));
+                Matcher matcher = WINDOWS_USB_ID.matcher(fields[0]);
+                if (!matcher.find())
+                    throw new IllegalStateException("Unexpected USB device ID from Windows query: " + fields[0]);
+                String vendorId = matcher.group(1);
+                String productId = matcher.group(2);
+                found.add(new UsbDevice(vendorId + ":" + productId, fields[1], fields[2],
+                                        -1, -1, hexadecimal(vendorId), hexadecimal(productId)));
             }
             return found;
         } catch (IOException e) {
