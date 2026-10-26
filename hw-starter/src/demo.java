@@ -1,6 +1,3 @@
-/* numbers and a few names. It is NOT a solution to the assignment: you still
- * have to measure load, store the devices, sort them, analyse them and present
- * the results.
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -25,26 +22,6 @@ import java.util.TreeMap;
  * Build:  javac *.java
  * Run:    java demo [--report <file>] (run it from the folder containing ids)
  */
-public class demo {
-    public static void main(String[] args) {
-        try {
-            textInterfaceCli.displayHeader();
-            System.out.println("Sampling system metrics... please wait 1 second...");
-
-            cpuLoadCalculator.calculateLoads();
-
-            textInterfaceCli.printCpuReport();
-
-
-        } catch (InterruptedException e) {
-            System.err.println("Error: System sampling execution was interrupted.");
-        } catch (Exception e) {
-            System.err.println("Fatal execution error: " + e.getMessage());
-        }
-    }
-}
-
-/*
 public class demo
 {
     public static void main(String[] args) throws Exception
@@ -130,8 +107,10 @@ public class demo
              + "or java -cp out demo --gui";
     }
 
-    private static void writeReport(PrintWriter out, Options options) throws IOException
+    private static void writeReport(PrintWriter out, Options options)
+        throws IOException, InterruptedException
     {
+        textInterfaceCli.displayHeader(out);
         out.println("HARDWARE INVENTORY REPORT");
         out.println("Generated: " + LocalDateTime.now());
         String reportedType = options.classFilter == null
@@ -151,9 +130,8 @@ public class demo
             out.println("CPU and memory information require Linux /proc files.");
             out.println("USB bus and device numbers are only available on Linux.");
         } else {
-            out.println("cores:  " + cpuInfo.getCount());
-            out.println("model:  " + cpuInfo.getModel());
-            out.println("core 0: busy=" + cpuInfo.getBusy(0) + " idle=" + cpuInfo.getIdle(0));
+            cpuLoadCalculator.calculateLoads();
+            textInterfaceCli.printCpuReport(out);
             out.println("memory: total=" + memInfo.getTotal() + " KiB, used=" + memInfo.getUsed() + " KiB");
         }
 
@@ -476,4 +454,3 @@ public class demo
         }
     }
 }
-*/

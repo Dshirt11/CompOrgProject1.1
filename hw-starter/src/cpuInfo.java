@@ -1,6 +1,4 @@
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Information about the processor, read from /proc/cpuinfo and /proc/stat.
