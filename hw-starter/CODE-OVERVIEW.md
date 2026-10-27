@@ -78,6 +78,7 @@ Reads memory values from Linux `/proc/meminfo`. All returned sizes are in KiB.
 - `getTotal()` returns installed memory.
 - `getAvailable()` returns memory Linux reports as available for use.
 - `getUsed()` returns total minus available.
+- `getUsedPercentage()` returns used memory as a percentage of total.
 - `field(name)` reads another named value, such as `SwapTotal`.
 
 If a value cannot be read, these methods return `-1`.

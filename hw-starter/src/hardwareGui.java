@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import javax.swing.JButton;
@@ -108,7 +109,8 @@ public class hardwareGui
         data.memoryRows = new Object[][] {
             {"Total memory (KiB)", displayValue(memInfo.getTotal())},
             {"Available memory (KiB)", displayValue(memInfo.getAvailable())},
-            {"Used memory (KiB)", displayValue(memInfo.getUsed())}
+            {"Used memory (KiB)", displayValue(memInfo.getUsed())},
+            {"Used memory (%)", displayPercentage(memInfo.getUsedPercentage())}
         };
 
         int pciCount = pciInfo.getCount();
@@ -277,6 +279,11 @@ public class hardwareGui
     private static String displayValue(long value)
     {
         return value < 0 ? "unavailable" : Long.toString(value);
+    }
+
+    private static String displayPercentage(double value)
+    {
+        return value < 0 ? "unavailable" : String.format(Locale.ROOT, "%.2f%%", value);
     }
 
     private static String displayNumber(int value)

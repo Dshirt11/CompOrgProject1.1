@@ -132,7 +132,11 @@ public class demo
         } else {
             cpuLoadCalculator.calculateLoads();
             textInterfaceCli.printCpuReport(out);
-            out.println("memory: total=" + memInfo.getTotal() + " KiB, used=" + memInfo.getUsed() + " KiB");
+            double usedPercentage = memInfo.getUsedPercentage();
+            String percentage = usedPercentage < 0
+                ? "unavailable" : String.format(Locale.ROOT, "%.2f%%", usedPercentage);
+            out.println("memory: total=" + memInfo.getTotal() + " KiB, used="
+                        + memInfo.getUsed() + " KiB (" + percentage + ")");
         }
 
         idLookup pci = options.type == DeviceType.USB ? null : idLookup.pci();
