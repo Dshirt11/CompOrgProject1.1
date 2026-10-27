@@ -27,6 +27,19 @@ public class memInfo
         long available = getAvailable();
         return (total < 0 || available < 0) ? -1 : total - available;
     }
+     /** Memory usage as a percentage of total memory. */
+    
+    public static double getUsedPercentage()
+    {
+        long total = getTotal();
+        long used = getUsed();
+
+        if (total <= 0 || used < 0) {
+            return -1;
+        }
+
+        return (used * 100.0) / total;
+    }
 
     /** The value in KiB of a named line of /proc/meminfo such as "SwapTotal", or -1. */
     public static long field(String name)
@@ -44,3 +57,5 @@ public class memInfo
         return -1;
     }
 }
+
+
