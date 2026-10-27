@@ -20,6 +20,7 @@ class sysFile
     /** A path such as "/proc/stat", moved under the hw.root folder if one was given. */
     static Path path(String name)
     {
+        // When testing, map "/proc/..." to "<hw.root>/proc/...".
         return Path.of(ROOT + name);
     }
 
@@ -27,8 +28,10 @@ class sysFile
     static String text(Path file)
     {
         try {
+            // Remove surrounding whitespace, including the final newline.
             return Files.readString(file).strip();
         } catch (IOException e) {
+            // Hardware fields can be absent, for example on restricted systems.
             return "";
         }
     }
@@ -39,6 +42,7 @@ class sysFile
         try {
             return Files.readAllLines(file);
         } catch (IOException e) {
+            // An empty list lets callers naturally report no readable entries.
             return List.of();
         }
     }
@@ -49,6 +53,7 @@ class sysFile
      */
     static long number(Path file)
     {
+        // Read text first, then accept either a decimal or 0x-prefixed hex value.
         String s = text(file);
         try {
             if (s.startsWith("0x") || s.startsWith("0X"))

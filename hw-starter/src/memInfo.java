@@ -6,6 +6,7 @@ import java.nio.file.Path;
  */
 public class memInfo
 {
+    // Keep the path in one place so all memory queries use the same test-root behavior.
     private static final Path MEMINFO = sysFile.path("/proc/meminfo");
 
     /** Total installed memory in KiB, or -1 if it cannot be read. */
@@ -23,6 +24,7 @@ public class memInfo
     /** Memory in use in KiB: total minus available. */
     public static long getUsed()
     {
+        // Linux reports available memory directly; used memory is the remainder.
         long total = getTotal();
         long available = getAvailable();
         return (total < 0 || available < 0) ? -1 : total - available;
@@ -34,10 +36,12 @@ public class memInfo
         long total = getTotal();
         long used = getUsed();
 
+        // A percentage is undefined if either reading is missing or total is zero.
         if (total <= 0 || used < 0) {
             return -1;
         }
 
+        // Use floating-point arithmetic so the result includes fractional percent.
         return (used * 100.0) / total;
     }
 
@@ -46,6 +50,7 @@ public class memInfo
     {
         for (String line : sysFile.lines(MEMINFO)) {
             if (line.startsWith(name + ":")) {
+                // The first token after the field name is its value in KiB.
                 String[] part = line.substring(name.length() + 1).strip().split("\\s+");
                 try {
                     return Long.parseLong(part[0]);
@@ -57,5 +62,4 @@ public class memInfo
         return -1;
     }
 }
-
 

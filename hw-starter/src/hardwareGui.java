@@ -30,6 +30,7 @@ import javax.swing.table.TableRowSorter;
 /** Optional Swing interface for viewing and exporting hardware information. */
 public class hardwareGui
 {
+    // Components are fields so loading, filtering, and exporting can update them.
     private final JFrame frame = new JFrame("Hardware Inspector");
     private final JLabel status = new JLabel("Loading hardware information...");
     private final JButton exportButton = new JButton("Export visible tables...");
@@ -38,6 +39,7 @@ public class hardwareGui
 
     public static void launch()
     {
+        // Swing windows cannot be created in a headless terminal environment.
         if (GraphicsEnvironment.isHeadless()) {
             System.err.println("Cannot open the GUI: no graphical display is available.");
             return;
@@ -47,6 +49,7 @@ public class hardwareGui
 
     private void showWindow()
     {
+        // Build the main window shell before starting the potentially slow reads.
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(760, 480));
         frame.setSize(1050, 650);
@@ -63,6 +66,7 @@ public class hardwareGui
         exportButton.addActionListener(event -> exportVisibleTables());
         frame.setVisible(true);
 
+        // Read hardware off the Swing event thread so the window remains responsive.
         new SwingWorker<HardwareData, Void>()
         {
             @Override
@@ -75,15 +79,19 @@ public class hardwareGui
             protected void done()
             {
                 try {
+                    // SwingWorker.done() runs on the event thread, so it is safe
+                    // to install the tables and update the status here.
                     addTabs(get());
                     status.setText("Hardware information loaded. Filters search all columns.");
                     exportButton.setEnabled(true);
                 } catch (InterruptedException e) {
+                    // Restore the interrupt signal after the worker wait is interrupted.
                     Thread.currentThread().interrupt();
                     status.setText("Could not load hardware information.");
                     JOptionPane.showMessageDialog(frame, e.getMessage(),
                         "Hardware query failed", JOptionPane.ERROR_MESSAGE);
                 } catch (ExecutionException e) {
+                    // Show the underlying hardware-read error rather than a wrapper.
                     Throwable cause = e.getCause() == null ? e : e.getCause();
                     status.setText("Could not load hardware information.");
                     JOptionPane.showMessageDialog(frame, cause.getMessage(),
@@ -95,8 +103,10 @@ public class hardwareGui
 
     private static HardwareData loadHardwareData() throws IOException
     {
+        // Collect the data into table rows first; Swing components are built later.
         HardwareData data = new HardwareData();
 
+        // CPU and memory rows use the same labels/values format.
         List<Object[]> cpuRows = new ArrayList<>();
         cpuRows.add(new Object[] {"Processor model", cpuInfo.getModel()});
         cpuRows.add(new Object[] {"Logical processors", cpuInfo.getCount()});
@@ -113,6 +123,7 @@ public class hardwareGui
             {"Used memory (%)", displayPercentage(memInfo.getUsedPercentage())}
         };
 
+        // Look up readable names once, then reuse them for every PCI row.
         int pciCount = pciInfo.getCount();
         idLookup pciNames = pciCount == 0 ? null : idLookup.pci();
         List<Object[]> pciRows = new ArrayList<>();
@@ -135,6 +146,7 @@ public class hardwareGui
         }
         data.pciRows = pciRows.toArray(new Object[0][]);
 
+        // USB name tables are also loaded once and reused for all USB rows.
         int usbCount = usbInfo.getCount();
         idLookup usbNames = usbCount == 0 ? null : idLookup.usb();
         List<Object[]> usbRows = new ArrayList<>();
@@ -159,6 +171,7 @@ public class hardwareGui
 
     private void addTabs(HardwareData data)
     {
+        // Keep one table per hardware category for independent sorting/filtering.
         addTableTab("CPU", new String[] {"Information", "Value"}, data.cpuRows);
         addTableTab("Memory", new String[] {"Information", "Value"}, data.memoryRows);
         addTableTab("PCI", new String[] {"Address", "Bus", "Device", "Function", "Vendor ID",
@@ -170,6 +183,7 @@ public class hardwareGui
 
     private void addTableTab(String title, String[] columns, Object[][] rows)
     {
+        // Disable editing: these tables display a hardware snapshot, not input forms.
         DefaultTableModel model = new DefaultTableModel(rows, columns)
         {
             @Override
@@ -182,6 +196,7 @@ public class hardwareGui
         table.setAutoCreateRowSorter(true);
         tables.add(table);
 
+        // A separate sorter lets this tab filter its displayed rows as the user types.
         JTextField filter = new JTextField(24);
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
         table.setRowSorter(sorter);
@@ -190,6 +205,7 @@ public class hardwareGui
             private void updateFilter()
             {
                 String value = filter.getText().trim();
+                // Quote the user's text so punctuation is treated literally, not as regex.
                 sorter.setRowFilter(value.isEmpty()
                     ? null : RowFilter.regexFilter("(?i)" + Pattern.quote(value)));
             }
@@ -224,6 +240,7 @@ public class hardwareGui
 
     private void exportVisibleTables()
     {
+        // Ask where to save; cancelling the dialog leaves the current window unchanged.
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Export visible hardware tables");
         chooser.setSelectedFile(new java.io.File("hardware-inventory.txt"));
@@ -231,12 +248,14 @@ public class hardwareGui
             return;
 
         Path output = chooser.getSelectedFile().toPath();
+        // Protect existing files from accidental replacement.
         if (Files.exists(output)
             && JOptionPane.showConfirmDialog(frame, "Replace " + output + "?",
                 "Confirm overwrite", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
             return;
         StringBuilder text = new StringBuilder("HARDWARE INVENTORY\nGenerated: ")
             .append(LocalDateTime.now()).append(System.lineSeparator());
+        // Export the view order, which reflects both active filters and sorting.
         for (int tabIndex = 0; tabIndex < tabs.getTabCount(); tabIndex++)
             appendVisibleTable(text, tabs.getTitleAt(tabIndex), tables.get(tabIndex));
 
@@ -251,6 +270,8 @@ public class hardwareGui
 
     static void appendVisibleTable(StringBuilder text, String title, JTable table)
     {
+        // JTable row/column coordinates can differ from model coordinates after
+        // sorting, so convert each visible coordinate before reading cell values.
         text.append(System.lineSeparator()).append(title).append(System.lineSeparator());
         for (int column = 0; column < table.getColumnCount(); column++) {
             if (column > 0)
@@ -278,6 +299,7 @@ public class hardwareGui
 
     private static String displayValue(long value)
     {
+        // Negative values are the reader classes' marker for unavailable data.
         return value < 0 ? "unavailable" : Long.toString(value);
     }
 
@@ -293,6 +315,7 @@ public class hardwareGui
 
     private static String hexId(int value)
     {
+        // Vendor and product IDs are 16-bit values.
         return value < 0 ? "unknown" : String.format("%04x", value);
     }
 
@@ -303,6 +326,7 @@ public class hardwareGui
 
     private static String lookupName(String name, int id)
     {
+        // Keep the numeric identifier visible when the local database lacks a name.
         if (name != null)
             return name;
         return id < 0 ? "unknown" : String.format("0x%04x", id);
@@ -310,6 +334,7 @@ public class hardwareGui
 
     private static final class HardwareData
     {
+        // Object[][] matches the row/column shape expected by DefaultTableModel.
         Object[][] cpuRows;
         Object[][] memoryRows;
         Object[][] pciRows;
