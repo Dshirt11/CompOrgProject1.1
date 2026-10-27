@@ -9,6 +9,7 @@ import java.nio.file.Path;
  */
 public class cpuInfo
 {
+    // sysFile resolves these to Linux paths, or into the test root if hw.root is set.
     private static final Path CPUINFO = sysFile.path("/proc/cpuinfo");
     private static final Path STAT = sysFile.path("/proc/stat");
 
@@ -16,6 +17,7 @@ public class cpuInfo
     public static int getCount()
     {
         int count = 0;
+        // Each "processor" line identifies one logical processor.
         for (String line : sysFile.lines(CPUINFO))
             if (line.startsWith("processor"))
                 count++;
@@ -37,6 +39,7 @@ public class cpuInfo
     public static String getField(String name)
     {
         for (String line : sysFile.lines(CPUINFO)) {
+            // Split at the first colon so values containing colons remain intact.
             int colon = line.indexOf(':');
             if (colon > 0 && line.substring(0, colon).strip().equals(name))
                 return line.substring(colon + 1).strip();
@@ -62,11 +65,14 @@ public class cpuInfo
     /** The numbers from the "cpuN" line of /proc/stat, or null if there is no such core. */
     private static long[] fields(int core)
     {
+        // Match only the requested cpuN record, not the aggregate "cpu" line.
         String prefix = "cpu" + core + " ";
         for (String line : sysFile.lines(STAT)) {
             if (line.startsWith(prefix)) {
                 String[] part = line.strip().split("\\s+");
                 long[] f = new long[8];
+                // The first item is the label; following items are Linux CPU counters.
+                // Missing trailing counters are treated as zero.
                 for (int i = 0; i < 8; i++)
                     f[i] = (i + 1 < part.length) ? Long.parseLong(part[i + 1]) : 0;
                 return f;

@@ -21,6 +21,7 @@ import java.util.Map;
  */
 public class idLookup
 {
+    // Store vendor IDs, combined vendor/device IDs, and PCI class codes by numeric key.
     private final Map<Integer, String> vendors = new HashMap<>();
     private final Map<Long, String> devices = new HashMap<>();
     private final Map<Integer, String> classes = new HashMap<>();   // pci.ids only
@@ -29,31 +30,36 @@ public class idLookup
     public idLookup(Path file) throws IOException
     {
         List<String> lines = Files.readAllLines(file);
+        // These track the parent record for indented device and subclass entries.
         int vendor = -1;
         int baseClass = -1;
         boolean inClasses = false;
 
         for (String line : lines) {
+            // Database comments and empty lines do not describe an ID.
             if (line.isEmpty() || line.startsWith("#"))
                 continue;
 
+            // "C xx" begins the PCI class section rather than the vendor section.
             if (line.startsWith("C ")) {                       // start of the class section
                 inClasses = true;
                 baseClass = Integer.parseInt(line.substring(2, 4), 16);
                 classes.put(baseClass << 8, line.substring(6).strip());
             } else if (inClasses && line.startsWith("\t") && !line.startsWith("\t\t")) {
-                // a sub class line such as "\t00  Host bridge"
+                // A single tab marks a subclass; two tabs would mark a deeper record.
                 if (baseClass >= 0 && line.length() > 5 && isHex(line, 1, 3))
                     classes.put((baseClass << 8) | Integer.parseInt(line.substring(1, 3), 16),
                                 line.substring(5).strip());
             } else if (inClasses) {
                 if (Character.isUpperCase(line.charAt(0)) && !line.startsWith("C "))
-                    baseClass = -1;                             // some other section
+                    baseClass = -1;                             // Another top-level section has begun.
             } else if (isHex(line, 0, 4) && line.length() > 6) {
+                // A non-indented hexadecimal record begins a vendor entry.
                 vendor = Integer.parseInt(line.substring(0, 4), 16);
                 vendors.put(vendor, line.substring(6).strip());
             } else if (line.startsWith("\t") && !line.startsWith("\t\t")
                        && vendor >= 0 && isHex(line, 1, 5) && line.length() > 7) {
+                // A single-tab indented record belongs to the most recent vendor.
                 int device = Integer.parseInt(line.substring(1, 5), 16);
                 devices.put(key(vendor, device), line.substring(7).strip());
             }
@@ -75,9 +81,11 @@ public class idLookup
 
     private static idLookup find(String name, String... systemPaths) throws IOException
     {
+        // Prefer the database shipped with this project so results are repeatable.
         Path local = Path.of("ids", name);
         if (Files.isReadable(local))
             return new idLookup(local);
+        // Fall back to common Linux package locations if the local copy is absent.
         for (String p : systemPaths)
             if (Files.isReadable(Path.of(p)))
                 return new idLookup(Path.of(p));
@@ -102,6 +110,7 @@ public class idLookup
      */
     public String className(int classCode)
     {
+        // Prefer an exact subclass match, otherwise fall back to the base class.
         String sub = classes.get(classCode >> 8);
         return sub != null ? sub : classes.get(classCode >> 16 << 8);
     }
@@ -114,6 +123,7 @@ public class idLookup
 
     private static long key(int vendor, int device)
     {
+        // Pack two 16-bit IDs into one long key without collisions.
         return ((long) vendor << 16) | device;
     }
 
@@ -121,6 +131,7 @@ public class idLookup
     {
         if (s.length() < to)
             return false;
+        // The IDs database uses lowercase hexadecimal digits in these columns.
         for (int i = from; i < to; i++)
             if (Character.digit(s.charAt(i), 16) < 0 || Character.isUpperCase(s.charAt(i)))
                 return false;

@@ -109,7 +109,7 @@ display is required. WSL users need WSLg or another configured display server.
 
 - This exports plain text only; CSV and JSON export are not implemented.
 - CPU and memory details still depend on Linux `/proc` files.
-- PCI and USB contents depend on what the operating system exposes and on the
+- PCI and USB contents depend on what Linux exposes and on the
   required ID database files being available.
 
 ## Supporting documentation

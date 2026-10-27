@@ -85,14 +85,12 @@ If a value cannot be read, these methods return `-1`.
 
 ### `pciInfo`
 
-Finds PCI devices and provides their addresses, IDs, and class codes. On Linux,
-it reads `/sys/bus/pci/devices`; on Windows it queries Plug and Play device
-information; on macOS it reads `system_profiler` output.
+Finds PCI devices and provides their addresses, IDs, and class codes by reading
+`/sys/bus/pci/devices`.
 
 - `getCount()` returns the number of discovered devices.
-- `getAddress(i)` returns the address or operating-system identifier.
-- `getBus(i)`, `getDevice(i)`, and `getFunction(i)` return location numbers
-  when available; otherwise they return `-1`.
+- `getAddress(i)` returns the PCI address.
+- `getBus(i)`, `getDevice(i)`, and `getFunction(i)` return its location numbers.
 - `getVendorId(i)`, `getDeviceId(i)`, and `getClassCode(i)` return numeric IDs.
 - `rescan()` discards the cached list so the next call reads devices again.
 
@@ -100,16 +98,15 @@ The index `i` is zero-based and must be between `0` and `getCount() - 1`.
 
 ### `usbInfo`
 
-Finds USB devices and provides IDs and descriptive fields. On Linux, it reads
-`/sys/bus/usb/devices`; on Windows it queries Plug and Play; on macOS it reads
-`system_profiler` output.
+Finds USB devices and provides IDs and descriptive fields by reading
+`/sys/bus/usb/devices`.
 
 - `getCount()` returns the number of discovered devices.
 - `getName(i)`, `getManufacturer(i)`, and `getProduct(i)` return text reported
-  by the device or operating system.
+  by the device.
 - `getVendorId(i)` and `getProductId(i)` return numeric IDs.
-- `getBusNumber(i)` and `getDeviceNumber(i)` return Linux-style numbers when
-  available; they return `-1` on Windows and macOS.
+- `getBusNumber(i)` and `getDeviceNumber(i)` return the Linux bus and device
+  numbers.
 - `rescan()` clears the cached list so the next call reads devices again.
 
 The index `i` is zero-based and must be between `0` and `getCount() - 1`.
@@ -140,9 +137,7 @@ For example, `-Dhw.root=/home/me/sample` redirects a read of `/proc/cpuinfo` to
 
 ## Platform notes
 
-- CPU and memory readers use Linux `/proc` files; they do not provide those
-  values on Windows or macOS.
-- PCI and USB readers have additional Windows and macOS implementations.
-- Linux-style USB bus and device numbers are unavailable on Windows and macOS.
+- All hardware readers use Linux `/proc` and `/sys` files. Run the program on
+  Linux or WSL to read hardware information.
 - A missing ID database prevents the demo from translating IDs and results in
   an `IOException`.
