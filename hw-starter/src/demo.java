@@ -223,6 +223,13 @@ public class demo
             for (Map.Entry<String, Integer> entry : devicesPerVendor.entrySet())
                 out.printf("  %-40s %d%n", entry.getKey(), entry.getValue());
             out.println("Total PCI devices: " + pciDevices.size());
+
+            // Show the whole PCI list sorted two ways: by vendor name and by bus/device/function.
+            List<pciSorter.Entry> sorterEntries = new ArrayList<>();
+            for (PciDevice device : pciDevices)
+                sorterEntries.add(new pciSorter.Entry(device.bus, device.device, device.function,
+                                                      device.vendorId, device.deviceId, device.classCode));
+            pciSorter.printBothSorts(out, sorterEntries, pci);
         }
 
         List<UsbDevice> usbDevices = new ArrayList<>();
