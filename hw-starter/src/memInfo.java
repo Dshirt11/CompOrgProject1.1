@@ -60,6 +60,27 @@ public class memInfo
             }
         }
         return -1;
+
+
+
+
+
+
+
     }
+
+    public static double getUsedPercentage()
+    {
+        long total = getTotal();
+        long used = getUsed();
+
+        if (total <= 0 || used < 0) {
+            return -1;
+        }
+
+        return (used * 100.0) / total;
+    }
+
+
 }
 
