@@ -24,6 +24,11 @@ public class demo
 {
     public static void main(String[] args) throws Exception
     {
+        if (args.length == 1 && args[0].equalsIgnoreCase("--benchmark")) {
+            speedupTest.main(args);
+            return;
+        }
+
         // The GUI is a separate mode and does not use the CLI report pipeline.
         if (args.length == 1 && args[0].equals("--gui")) {
             hardwareGui.launch();
