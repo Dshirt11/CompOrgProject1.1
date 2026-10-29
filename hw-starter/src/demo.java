@@ -255,17 +255,105 @@ public class demo
             if (usbDevices.isEmpty()) {
                 out.println("No USB devices match the selected filters.");
             } else {
-                for (int i = 0; i < usbDevices.size(); i++) {
-                    UsbDevice device = usbDevices.get(i);
-                    out.printf("  %d. Bus %s Device %s: ID %s:%s  %s %s%n",
-                               i + 1, paddedNumberOrUnknown(device.bus),
-                               paddedNumberOrUnknown(device.device),
-                               hexId(device.vendorId), hexId(device.productId),
-                               pciNameOrId(device.vendorId, usb.vendorName(device.vendorId)),
-                               pciNameOrId(device.productId,
-                                           usb.deviceName(device.vendorId, device.productId)));
+		
+		    for (int i = 0; i < usbDevices.size(); i++) {
+            UsbDevice device = usbDevices.get(i);
+
+            String officialVendor = pciNameOrId(device.vendorId, usb.vendorName(device.vendorId));
+            String officialProduct = pciNameOrId(device.productId, usb.deviceName(device.vendorId, device.productId));
+
+            int physicalIndex = -1;
+            for (int k = 0; k < usbInfo.getCount(); k++) {
+                if (usbInfo.getBusNumber(k) == device.bus && usbInfo.getDeviceNumber(k) == device.device) {
+                    physicalIndex = k;
+                    break;
                 }
             }
+
+            String physicalManufacturer = (physicalIndex == -1) ? "unknown" : usbInfo.getManufacturer(physicalIndex);
+            String physicalProductText = (physicalIndex == -1) ? "unknown" : usbInfo.getProduct(physicalIndex);
+
+            out.printf("%n[USB Device %d] Bus %s Device %s | ID %s:%s%n",
+                       i + 1,
+                       paddedNumberOrUnknown(device.bus),
+                       paddedNumberOrUnknown(device.device),
+                       hexId(device.vendorId),
+                       hexId(device.productId));
+
+            out.printf("   Official Database Maps To:%n");
+            out.printf("      --- Vendor  : %s%n", officialVendor);
+            out.printf("      --- Product : %s%n", officialProduct);
+
+            out.printf("   Physical Chip Broadcasts:%n");
+            out.printf("      --- Manufacturer : %s%n", physicalManufacturer.isEmpty() ? "unknown" : physicalManufacturer);
+            out.printf("      --- Product Text : %s%n", physicalProductText.isEmpty() ? "unknown" : physicalProductText);
+        }}
+
+
+        // CSV PRESENTATION
+        try (java.io.PrintWriter csv = new java.io.PrintWriter("hardware_full_report.csv")) {
+            csv.println("SECTION,KEY_OR_ID,VALUE_OR_NAME,DETAILS");
+            
+            // 1. CPU Section
+            csv.printf("CPU,Model,\"%s\",\"Main Processor\"%n", cpuInfo.getModel());
+            csv.printf("CPU,Total Cores,%d,\"Logical Cores\"%n", cpuInfo.getCount());
+            csv.printf("CPU,Average System Load,%.2f%%,\"Aggregate\"%n", cpuLoadCalculator.averageSystemLoad);
+            for (int i = 0; i < cpuLoadCalculator.perCoreLoads.length; i++) {
+                csv.printf("CPU,Core %d,%.2f%%,\"Core Breakdown\"%n", i, cpuLoadCalculator.perCoreLoads[i]);
+            }
+            
+            // 2. Memory Section
+            double usedPct = memInfo.getUsedPercentage();
+            csv.printf("MEMORY,Total KiB,%d,\"System Total\"%n", memInfo.getTotal());
+            csv.printf("MEMORY,Used KiB,%d,\"Active Allocation\"%n", memInfo.getUsed());
+            csv.printf("MEMORY,Usage Percentage,%.2f%%,\"Load Fraction\"%n", usedPct < 0 ? 0.0 : usedPct);
+           
+	   //pci section 
+            csv.printf("PCI,Total Devices,%d,\"Filtered Hardware Inventory Count\"%n", pciDevices.size());
+            for (int i = 0; i < pciDevices.size(); i++) {
+                PciDevice p = pciDevices.get(i);
+                
+                String vendorName = pciNameOrId(p.vendorId, pci.vendorName(p.vendorId));
+                String deviceName = pciNameOrId(p.deviceId, pci.deviceName(p.vendorId, p.deviceId));
+                String className = nameOrUnknown(pci.className(p.classCode));
+                
+                String slotAddress = String.format("Bus %02x Slot %02x.%d", p.bus, p.device, p.function);
+                String cleanDescription = String.format("%s %s (%s)", vendorName, deviceName, className);
+                
+                // Escape quotes to preserve CSV formatting safety
+                csv.printf("PCI_DEVICE,%s,\"0x%04x:0x%04x\",\"%s\"%n", 
+                           slotAddress, p.vendorId, p.deviceId, cleanDescription.replace("\"", "'"));
+            }
+            
+            // 4. USB Section (Summary + Individual Filtered Rows)
+            csv.printf("USB,Total Devices,%d,\"Filtered Hardware Inventory Count\"%n", usbDevices.size());
+            for (int i = 0; i < usbDevices.size(); i++) {
+                UsbDevice u = usbDevices.get(i);
+                
+                int physicalIndex = -1;
+                for (int k = 0; k < usbInfo.getCount(); k++) {
+                    if (usbInfo.getBusNumber(k) == u.bus && usbInfo.getDeviceNumber(k) == u.device) {
+                        physicalIndex = k;
+                        break;
+                    }
+                }
+                
+                String chipProduct = (physicalIndex == -1) ? "" : usbInfo.getProduct(physicalIndex);
+                String dbVendor = pciNameOrId(u.vendorId, usb.vendorName(u.vendorId));
+                String descriptiveName = chipProduct.isEmpty() ? dbVendor : chipProduct;
+                
+                csv.printf("USB_DEVICE,Bus %03d Device %03d,0x%04x:0x%04x,\"%s\"%n", 
+                           u.bus, u.device, u.vendorId, u.productId, descriptiveName.replace("\"", "'"));
+            }
+            
+            System.out.println("\n[Extension Success] Exported ULTIMATE full report to ./hardware_full_report.csv");
+        } catch (Exception e) {
+            System.out.println("Full CSV export failed: " + e.getMessage());
+        }
+
+
+
+                
         }
     }
 
