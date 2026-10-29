@@ -255,16 +255,39 @@ public class demo
             if (usbDevices.isEmpty()) {
                 out.println("No USB devices match the selected filters.");
             } else {
-                for (int i = 0; i < usbDevices.size(); i++) {
-                    UsbDevice device = usbDevices.get(i);
-                    out.printf("  %d. Bus %s Device %s: ID %s:%s  %s %s%n",
-                               i + 1, paddedNumberOrUnknown(device.bus),
-                               paddedNumberOrUnknown(device.device),
-                               hexId(device.vendorId), hexId(device.productId),
-                               pciNameOrId(device.vendorId, usb.vendorName(device.vendorId)),
-                               pciNameOrId(device.productId,
-                                           usb.deviceName(device.vendorId, device.productId)));
+		
+		    for (int i = 0; i < usbDevices.size(); i++) {
+            UsbDevice device = usbDevices.get(i);
+
+            String officialVendor = pciNameOrId(device.vendorId, usb.vendorName(device.vendorId));
+            String officialProduct = pciNameOrId(device.productId, usb.deviceName(device.vendorId, device.productId));
+
+            int physicalIndex = -1;
+            for (int k = 0; k < usbInfo.getCount(); k++) {
+                if (usbInfo.getBusNumber(k) == device.bus && usbInfo.getDeviceNumber(k) == device.device) {
+                    physicalIndex = k;
+                    break;
                 }
+            }
+
+            String physicalManufacturer = (physicalIndex == -1) ? "unknown" : usbInfo.getManufacturer(physicalIndex);
+            String physicalProductText = (physicalIndex == -1) ? "unknown" : usbInfo.getProduct(physicalIndex);
+
+            out.printf("%n[USB Device %d] Bus %s Device %s | ID %s:%s%n",
+                       i + 1,
+                       paddedNumberOrUnknown(device.bus),
+                       paddedNumberOrUnknown(device.device),
+                       hexId(device.vendorId),
+                       hexId(device.productId));
+
+            out.printf("   Official Database Maps To:%n");
+            out.printf("      --- Vendor  : %s%n", officialVendor);
+            out.printf("      --- Product : %s%n", officialProduct);
+
+            out.printf("   Physical Chip Broadcasts:%n");
+            out.printf("      --- Manufacturer : %s%n", physicalManufacturer.isEmpty() ? "unknown" : physicalManufacturer);
+            out.printf("      --- Product Text : %s%n", physicalProductText.isEmpty() ? "unknown" : physicalProductText);
+        }
             }
         }
     }
