@@ -6,7 +6,7 @@ in WSL, in a Linux virtual machine, or on the course cloud server.
 
 ## Build and run
 
-See [RUNNING.md](RUNNING.md) for the WSL setup, command examples, report export,
+See [RUNNING.md](RUNNING.md) for WSL setup, command examples, report exports,
 and examples of calling the hardware-reading methods.
 See [CODE-OVERVIEW.md](CODE-OVERVIEW.md) for descriptions of the classes and
 their functions.
@@ -17,12 +17,12 @@ behavior.
     javac -d out src/*.java
     java -cp out demo
 
-Run `java` from this folder, so that the `ids` folder is found. `demo` shows
-how to call each class; it is not a solution to the assignment. Run it on Linux
-or WSL to read CPU, memory, PCI, and USB information.
-The demo groups PCI devices by controller category and PCI class, with counts
-per class and vendor. USB devices are sorted by vendor and include their vendor
-and product IDs; if none match the selected filters, it says so.
+Run `java` from this folder, so that the `ids` folder is found. The command-line
+demo reads CPU, memory, PCI, and USB information, then prints a text inventory.
+It groups PCI devices by controller category and PCI class, shows counts per
+class and vendor, and prints PCI lists sorted by vendor and by bus/device/
+function. USB devices are sorted by vendor and include their vendor and product
+IDs. If no USB devices match the selected filters, the report says so.
 
 To save the same output as a UTF-8 text report instead of printing it to the
 terminal, pass an output path:
@@ -32,11 +32,18 @@ terminal, pass an output path:
 The report path can be relative to this project folder or absolute. Existing
 files at that path are overwritten.
 To open the optional graphical interface, run `java -cp out demo --gui`.
+The normal command-line report also creates or overwrites
+`hardware_full_report.csv` in the current folder. Run the separate
+parallel-processing benchmark with:
+
+    java -cp out demo --benchmark
 
 ## The classes
 
-All methods are `static`. Linux values that cannot be read come back as -1 (or
-an empty string).
+Most hardware readers expose static methods. `idLookup` is an instance-based
+name database: create one with `idLookup.pci()` or `idLookup.usb()`, then use
+its lookup methods. Linux values that cannot be read generally come back as
+`-1`, an empty string, or `null`, depending on the method.
 
 | Class | Methods | Source |
 | --- | --- | --- |
@@ -49,8 +56,9 @@ an empty string).
 
 Notes:
 
-- `getBusy` and `getIdle` count ticks since boot. To get the CPU load, read both
-  twice, about a second apart, and work from the differences.
+- `getBusy` and `getIdle` count ticks since boot for each logical processor.
+  The report reads them twice, about a second apart, and uses the differences
+  to calculate per-processor and aggregate load percentages.
 - On arm64 there is no `model name` in `/proc/cpuinfo`: `getModel()` returns
   "unknown". Use `getField("CPU part")` or `getField("CPU implementer")`.
 - On Linux, `usbInfo` lists root hubs as well as plugged-in devices, in the
@@ -63,6 +71,9 @@ Notes:
   no matching name, it displays the raw hexadecimal ID instead.
 - USB vendor and product names are looked up in `ids/usb.ids`; unknown IDs are
   displayed as raw hexadecimal values.
+- `--benchmark` runs a separate prime-counting workload at several thread
+  counts and reports timings, speedup, efficiency, and CPU load when counters
+  are available. It does not generate the inventory report.
 
 ## Testing against a copy of /proc and /sys
 

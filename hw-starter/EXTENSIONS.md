@@ -49,7 +49,9 @@ The demo accepts optional filters to show only relevant devices:
 
 Filters can be combined, and they also apply when saving a text report. PCI
 devices are grouped by category and sorted by vendor within each group. USB
-devices are sorted by vendor name.
+devices are sorted by vendor name. The complete PCI list is also printed in
+two orders: alphabetically by vendor name and numerically by bus, device, and
+function. PCI summary counts are calculated after filters are applied.
 
 Examples:
 
@@ -59,6 +61,22 @@ java -cp out demo --class network
 java -cp out demo --bus 1 --type pci
 java -cp out demo --type usb --report usb-inventory.txt
 ```
+
+## Export a CSV report
+
+The command-line report also writes a CSV file named
+`hardware_full_report.csv` in the current project folder. It includes CPU and
+memory values, PCI and USB device rows, and readable names where available.
+The CSV is generated automatically when the normal command-line report runs;
+it uses a fixed filename and overwrites the previous file. The `--report`
+option separately controls the UTF-8 text report.
+
+## Show USB-reported manufacturer and product text
+
+For each USB device, the text report shows both the vendor and product names
+from `usb.ids` and the manufacturer and product strings reported by the device
+or operating system. Either source may be unavailable, in which case the
+report displays `unknown`.
 
 ## Group PCI devices by class
 
@@ -101,13 +119,49 @@ clicking a column header sorts the table. **Export visible tables...** saves
 the currently filtered and sorted rows from every tab to a UTF-8 text file.
 The export dialog asks before replacing an existing file. Hardware data is
 collected once when the window opens; close and relaunch to refresh it.
+The CPU tab displays raw processor counters; the command-line report and
+benchmark calculate CPU load percentages.
 
 The GUI uses Java Swing, so no additional GUI library is needed. A graphical
 display is required. WSL users need WSLg or another configured display server.
 
+## Benchmark parallel processing
+
+Run the optional benchmark mode with:
+
+```bash
+java -cp out demo --benchmark
+```
+
+It counts prime numbers using several thread counts, compares the run times,
+and reports speedup, efficiency, estimated serial fraction, and CPU load when
+Linux CPU counters are available. It is a separate mode and does not generate
+the normal hardware inventory report.
+
+## Test against copied Linux system data
+
+The `hw.root` system property lets the hardware readers use copied `/proc` and
+`/sys` data instead of the live system paths. This can be used to test the
+reader classes with a captured system snapshot. Copy the expected files and
+directories under the supplied root, preserving their `proc` and `sys` paths:
+
+```bash
+java -Dhw.root=/path/to/copied-data -cp out demo
+```
+
+## Rescan device lists
+
+The PCI and USB reader classes cache their discovered device lists. Call
+`pciInfo.rescan()` or `usbInfo.rescan()` to clear the relevant cache; the next
+read will scan the Linux device directory again.
+
 ### Limitations
 
-- This exports plain text only; CSV and JSON export are not implemented.
+- The GUI's **Export visible tables...** action exports plain text. CSV is
+  generated separately by the command-line report; JSON export is not
+  implemented.
+- The command-line CSV export always uses `hardware_full_report.csv` in the
+  current folder rather than accepting a separate output path.
 - CPU and memory details still depend on Linux `/proc` files.
 - PCI and USB contents depend on what Linux exposes and on the
   required ID database files being available.

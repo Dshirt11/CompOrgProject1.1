@@ -1,4 +1,8 @@
 
+/**
+ * Compares a prime-counting task across several thread counts and reports
+ * timing, speedup, estimated serial work, and CPU load when Linux counters exist.
+ */
 public class speedupTest
 {
     // Count primes below this number. Make it bigger if the 1 thread run is too quick.
@@ -108,6 +112,7 @@ public class speedupTest
         return 1.0 / (s + (1.0 - s) / n);
     }
 
+    /** Run the benchmark independently of the regular hardware inventory. */
     public static void main(String[] args) throws InterruptedException
     {
         int cores = cpuInfo.getCount();

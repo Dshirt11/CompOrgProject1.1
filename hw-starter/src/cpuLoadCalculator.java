@@ -9,7 +9,7 @@ public class cpuLoadCalculator {
     /** Load percentage for each logical processor, indexed by core number. */
 	public static double[] perCoreLoads;
 
-    /** Load percentage across all logical processors for the same interval. */
+    /** Aggregate, tick-weighted load percentage across all processors for the interval. */
 	public static double averageSystemLoad;
 
     /**

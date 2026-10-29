@@ -32,7 +32,10 @@ java -cp out demo
 The `ids` folder must be in the current working directory when you run the
 program; it contains the PCI and USB name databases used by the demo.
 On Linux, the report samples CPU load for about one second before displaying
-the hardware inventory.
+the hardware inventory. It reports logical processor count, load per
+processor and aggregate load, memory totals and usage, PCI devices and
+summaries, and USB devices. If no USB devices match the selected filters, the
+report explains that none matched.
 
 ## Save a text report
 
@@ -50,6 +53,13 @@ You can also pass a full output path:
 ```bash
 java -cp out demo --report "$HOME/hardware-report.txt"
 ```
+
+The standard command-line report also creates or overwrites
+`hardware_full_report.csv` in the current folder. This CSV path is fixed; the
+`--report` argument applies only to the text report. The CSV contains the same
+filtered PCI and USB device lists as the text report. The GUI has a separate
+**Export visible tables...** action that saves the currently visible table
+rows as plain text.
 
 ## Filter the device lists
 
@@ -81,8 +91,10 @@ PCI class. Devices within a group are sorted by vendor.
 
 ## Call the hardware functions
 
-The hardware information classes expose static methods, so you can call them
-directly from another Java class. For example, save this as
+The hardware reader classes expose static methods, so you can call them
+directly from another Java class. `idLookup` is instance-based: create a
+database with `idLookup.pci()` or `idLookup.usb()`, then call its lookup
+methods. For example, save this as
 `HardwareExample.java` in the project folder:
 
 ```java
@@ -151,6 +163,18 @@ java -Dhw.root=/path/to/copied-data -cp out demo
 The copied data should contain `proc/cpuinfo`, `proc/stat`, `proc/meminfo` and
 the relevant `sys/bus` directories.
 
+## Run the parallel-processing benchmark
+
+The benchmark is a separate mode, not part of the standard inventory report:
+
+```bash
+java -cp out demo --benchmark
+```
+
+It counts prime numbers with several thread counts, compares execution times,
+and reports speedup, efficiency, an estimated serial fraction, and CPU load
+when Linux CPU counters are available.
+
 ## Launch the graphical interface
 
 The command-line interface remains the default. Add `--gui` to launch the
@@ -166,3 +190,7 @@ Choose **Export visible tables...** to save the currently displayed (filtered
 and sorted) rows from all tabs to a UTF-8 text file. The GUI gathers hardware
 information when it opens. A graphical display is required; when running WSL,
 use a WSLg-enabled setup or another display server.
+
+The GUI's CPU tab shows processor information and raw busy/idle counters; the
+per-core and aggregate load percentages are calculated in the command-line
+report and benchmark.

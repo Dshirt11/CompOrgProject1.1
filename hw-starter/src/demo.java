@@ -22,8 +22,11 @@ import java.util.TreeMap;
  */
 public class demo
 {
+    /** Run the GUI, benchmark, or filtered command-line hardware report. */
     public static void main(String[] args) throws Exception
     {
+        // These modes are standalone so they do not accidentally produce the
+        // command-line text and CSV reports.
         if (args.length == 1 && args[0].equalsIgnoreCase("--benchmark")) {
             speedupTest.main(args);
             return;
@@ -121,7 +124,7 @@ public class demo
         // Keep the accepted syntax in one place for all argument errors.
         return "Usage: java -cp out demo [--report <file>] [--vendor <name>] "
              + "[--class <name-or-code>] [--bus <number>] [--type all|pci|usb] "
-             + "or java -cp out demo --gui";
+             + "or java -cp out demo --gui or java -cp out demo --benchmark";
     }
 
     private static void writeReport(PrintWriter out, Options options)
@@ -267,46 +270,57 @@ public class demo
             if (usbDevices.isEmpty()) {
                 out.println("No USB devices match the selected filters.");
             } else {
-		
-		    for (int i = 0; i < usbDevices.size(); i++) {
-            UsbDevice device = usbDevices.get(i);
+                // Match each filtered entry back to sysfs so the report can show
+                // device-reported text alongside database names.
+                for (int i = 0; i < usbDevices.size(); i++) {
+                    UsbDevice device = usbDevices.get(i);
+                    String officialVendor = pciNameOrId(
+                        device.vendorId, usb.vendorName(device.vendorId));
+                    String officialProduct = pciNameOrId(
+                        device.productId, usb.deviceName(device.vendorId, device.productId));
 
-            String officialVendor = pciNameOrId(device.vendorId, usb.vendorName(device.vendorId));
-            String officialProduct = pciNameOrId(device.productId, usb.deviceName(device.vendorId, device.productId));
+                    // Bus and device numbers identify the same USB device in both lists.
+                    int physicalIndex = -1;
+                    for (int k = 0; k < usbInfo.getCount(); k++) {
+                        if (usbInfo.getBusNumber(k) == device.bus
+                            && usbInfo.getDeviceNumber(k) == device.device) {
+                            physicalIndex = k;
+                            break;
+                        }
+                    }
 
-            int physicalIndex = -1;
-            for (int k = 0; k < usbInfo.getCount(); k++) {
-                if (usbInfo.getBusNumber(k) == device.bus && usbInfo.getDeviceNumber(k) == device.device) {
-                    physicalIndex = k;
-                    break;
+                    String physicalManufacturer = physicalIndex == -1
+                        ? "unknown" : usbInfo.getManufacturer(physicalIndex);
+                    String physicalProductText = physicalIndex == -1
+                        ? "unknown" : usbInfo.getProduct(physicalIndex);
+
+                    out.printf("%n[USB Device %d] Bus %s Device %s | ID %s:%s%n",
+                               i + 1,
+                               paddedNumberOrUnknown(device.bus),
+                               paddedNumberOrUnknown(device.device),
+                               hexId(device.vendorId),
+                               hexId(device.productId));
+
+                    out.println("   Official Database Maps To:");
+                    out.printf("      --- Vendor  : %s%n", officialVendor);
+                    out.printf("      --- Product : %s%n", officialProduct);
+                    out.println("   Physical Chip Broadcasts:");
+                    out.printf("      --- Manufacturer : %s%n",
+                               physicalManufacturer.isEmpty() ? "unknown" : physicalManufacturer);
+                    out.printf("      --- Product Text : %s%n",
+                               physicalProductText.isEmpty() ? "unknown" : physicalProductText);
                 }
             }
 
-            String physicalManufacturer = (physicalIndex == -1) ? "unknown" : usbInfo.getManufacturer(physicalIndex);
-            String physicalProductText = (physicalIndex == -1) ? "unknown" : usbInfo.getProduct(physicalIndex);
 
-            out.printf("%n[USB Device %d] Bus %s Device %s | ID %s:%s%n",
-                       i + 1,
-                       paddedNumberOrUnknown(device.bus),
-                       paddedNumberOrUnknown(device.device),
-                       hexId(device.vendorId),
-                       hexId(device.productId));
-
-            out.printf("   Official Database Maps To:%n");
-            out.printf("      --- Vendor  : %s%n", officialVendor);
-            out.printf("      --- Product : %s%n", officialProduct);
-
-            out.printf("   Physical Chip Broadcasts:%n");
-            out.printf("      --- Manufacturer : %s%n", physicalManufacturer.isEmpty() ? "unknown" : physicalManufacturer);
-            out.printf("      --- Product Text : %s%n", physicalProductText.isEmpty() ? "unknown" : physicalProductText);
-        }}
-
-
-        // CSV PRESENTATION
+        // Every normal CLI report also refreshes this fixed-name CSV export.
+        // This is separate from --report, which controls only the text destination.
         try (java.io.PrintWriter csv = new java.io.PrintWriter("hardware_full_report.csv")) {
+            // Keep the export in four columns so spreadsheet programs can import
+            // both summary rows and individual device rows consistently.
             csv.println("SECTION,KEY_OR_ID,VALUE_OR_NAME,DETAILS");
             
-            // 1. CPU Section
+            // Processor summary and one row for each logical processor's load.
             csv.printf("CPU,Model,\"%s\",\"Main Processor\"%n", cpuInfo.getModel());
             csv.printf("CPU,Total Cores,%d,\"Logical Cores\"%n", cpuInfo.getCount());
             csv.printf("CPU,Average System Load,%.2f%%,\"Aggregate\"%n", cpuLoadCalculator.averageSystemLoad);
@@ -314,13 +328,13 @@ public class demo
                 csv.printf("CPU,Core %d,%.2f%%,\"Core Breakdown\"%n", i, cpuLoadCalculator.perCoreLoads[i]);
             }
             
-            // 2. Memory Section
+            // Memory sizes are written in KiB; an unavailable percentage uses 0.
             double usedPct = memInfo.getUsedPercentage();
             csv.printf("MEMORY,Total KiB,%d,\"System Total\"%n", memInfo.getTotal());
             csv.printf("MEMORY,Used KiB,%d,\"Active Allocation\"%n", memInfo.getUsed());
             csv.printf("MEMORY,Usage Percentage,%.2f%%,\"Load Fraction\"%n", usedPct < 0 ? 0.0 : usedPct);
            
-	   //pci section 
+            // PCI summary and rows use the device list after all active filters.
             csv.printf("PCI,Total Devices,%d,\"Filtered Hardware Inventory Count\"%n", pciDevices.size());
             for (int i = 0; i < pciDevices.size(); i++) {
                 PciDevice p = pciDevices.get(i);
@@ -332,12 +346,13 @@ public class demo
                 String slotAddress = String.format("Bus %02x Slot %02x.%d", p.bus, p.device, p.function);
                 String cleanDescription = String.format("%s %s (%s)", vendorName, deviceName, className);
                 
-                // Escape quotes to preserve CSV formatting safety
+                // Avoid ending a quoted description early if a database name
+                // contains a quote character.
                 csv.printf("PCI_DEVICE,%s,\"0x%04x:0x%04x\",\"%s\"%n", 
                            slotAddress, p.vendorId, p.deviceId, cleanDescription.replace("\"", "'"));
             }
             
-            // 4. USB Section (Summary + Individual Filtered Rows)
+            // USB summary and rows use the device list after all active filters.
             csv.printf("USB,Total Devices,%d,\"Filtered Hardware Inventory Count\"%n", usbDevices.size());
             for (int i = 0; i < usbDevices.size(); i++) {
                 UsbDevice u = usbDevices.get(i);

@@ -37,6 +37,7 @@ public class hardwareGui
     private final JTabbedPane tabs = new JTabbedPane();
     private final List<JTable> tables = new ArrayList<>();
 
+    /** Open the hardware tables, or explain when no graphical display is available. */
     public static void launch()
     {
         // Swing windows cannot be created in a headless terminal environment.

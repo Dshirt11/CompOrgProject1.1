@@ -7,18 +7,23 @@ rather than asking the user to enter hardware details.
 
 ## Program flow
 
-1. `demo` checks whether a report filename was provided.
-2. On Linux, it samples CPU counters about one second apart to calculate
-   overall and per-core load, and reads memory information. It then gathers
-   PCI and USB devices through their respective reader classes.
+1. `demo` first checks for the separate `--gui` and `--benchmark` modes.
+   Otherwise it parses report and device-filter options.
+2. The command-line report samples CPU counters about one second apart to
+   calculate per-logical-processor and aggregate load, and reads memory
+   information. It then gathers the requested PCI and USB devices.
 3. `idLookup` translates numeric vendor, device, and PCI class IDs into names.
-4. The demo sorts and summarizes the PCI devices, lists USB devices, and
-   prints the report. With `--report <file>`, it writes the same report to a
-   UTF-8 text file instead.
+   Missing names are shown as raw IDs or `unknown`.
+4. The demo groups, sorts, and summarizes PCI devices, lists USB devices, and
+   prints a readable text report. With `--report <file>`, it saves the same
+   text report as UTF-8. A normal command-line run also writes
+   `hardware_full_report.csv` to the current folder.
 
 Run the program from the project folder containing `ids`, because the ID
 databases are loaded relative to the current working directory. Build and run
-instructions are in [RUNNING.md](RUNNING.md).
+instructions are in [RUNNING.md](RUNNING.md). Command-line filters can select
+device type, vendor, PCI class, or bus. Those filters affect device lists and
+summaries, but CPU and memory values are still reported.
 
 ## Classes
 
@@ -41,19 +46,23 @@ the terminal or saves it to a report file.
   information remains included when available.
 - `--gui`: open the optional Swing interface. This option is used by itself;
   omit it to use the command-line interface.
+- `--benchmark`: run the separate threaded prime-counting benchmark, rather
+  than generating an inventory report.
 - Any other argument form results in a usage error.
 
-The report includes sampled CPU load and memory details when running on Linux,
-PCI devices grouped into network, display, storage, bridge, and USB-controller categories,
-remaining devices grouped by PCI class, totals per class and vendor, and USB
-devices sorted by vendor. Devices within each PCI group are sorted by vendor.
-Unknown IDs are shown as hexadecimal values or `unknown`. Multiple filters can
-be combined; a class filter applies only to PCI and omits the USB list.
+The command-line report includes sampled CPU load and memory details when
+running on Linux; PCI devices grouped into network, display, storage, bridge,
+and USB-controller categories; remaining devices grouped by PCI class; totals
+per class and vendor; and USB devices sorted by vendor. Devices within each
+PCI group are sorted by vendor. Unknown IDs are shown as hexadecimal values or
+`unknown`. Multiple filters can be combined; a class filter applies only to
+PCI and omits the USB list.
 
 The GUI gathers one hardware snapshot at startup, displays it in CPU, memory,
 PCI, and USB tabs, and provides per-tab text filters and sortable columns. Its
 export button writes the currently visible rows from all tabs to a UTF-8 text
-file.
+file. The GUI CPU tab shows raw busy and idle counters; CPU load percentages
+are calculated by the command-line report and benchmark.
 
 ### `cpuInfo`
 
@@ -70,6 +79,10 @@ twice with a delay between samples, then calculate:
 ```text
 busy difference / (busy difference + idle difference) * 100
 ```
+
+`cpuLoadCalculator.calculateLoads()` performs this calculation for each
+logical processor. Its aggregate percentage combines all busy and idle tick
+deltas across processors for the same sampling interval.
 
 ### `memInfo`
 
@@ -110,6 +123,9 @@ Finds USB devices and provides IDs and descriptive fields by reading
 - `rescan()` clears the cached list so the next call reads devices again.
 
 The index `i` is zero-based and must be between `0` and `getCount() - 1`.
+Root hubs and interface directories that do not have a vendor ID are not
+counted as USB devices. If the device list is empty, the report handles it
+without requiring a name lookup for any device.
 
 ### `idLookup`
 
